@@ -1,1 +1,1 @@
-# Classification of Camera Trap Images Containing Elepants
+# Using ResNet-50 for Classifying Camera Trap Images Containing Elephants
