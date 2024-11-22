@@ -18,8 +18,16 @@ class CustomImageDataset(Dataset):
             idx = idx.tolist()
         
         img_url = self.df.iloc[idx, 0] 
-        response = requests.get(img_url) 
+        try:
+            response = requests.get(img_url)         
+        except:
+            # remove entry from dataloader
+            print(f"Removing image {img_url} due to error")
+            self.df.drop(self.df.index[idx], inplace=True)
+            self.df.reset_index(drop=True, inplace=True)
 
+            return self.__getitem__(idx)
+        
         if response.status_code != 200:
             # remove entry from dataloader
             print(f"Removing image {img_url} due to error code {response.status_code}")

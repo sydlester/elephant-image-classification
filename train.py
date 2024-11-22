@@ -1,9 +1,10 @@
 import pandas as pd
 from torch.utils.data import DataLoader, random_split
 import torch
+import os
 from torchvision import transforms
-from ImageDataset import CustomImageDataset
-from ResNet import ResNet
+from data.ImageDataset import CustomImageDataset
+from model.ResNet import ResNet
 
 def get_data():
     # read in the data
@@ -26,13 +27,12 @@ def get_data():
     train_data = CustomImageDataset(df=df, transform=transform)
     train_set, test_set = random_split(train_data, [0.7, 0.3])
     # update num_workers?
-    train_dataloader = DataLoader(train_set, batch_size=64, shuffle=True)
-    test_dataloader = DataLoader(test_set, batch_size=64, shuffle=True)
+    train_dataloader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=4)
+    test_dataloader = DataLoader(test_set, batch_size=64, shuffle=True, num_workers=4)
 
     return train_dataloader, test_dataloader
 
 def train_model(train_dataloader, test_dataloader, model, criterion, optimizer, scheduler, num_epochs=5):
-    num_batches = len(train_dataloader)
     classes = ['human', 'gazelleGrants', 'reedbuck', 'dikDik', 'zebra', 'porcupine',
                 'gazelleThomsons', 'hyenaSpotted', 'warthog', 'impala', 'elephant', 'giraffe',
                 'mongoose', 'buffalo', 'hartebeest', 'guineaFowl', 'wildebeest', 'leopard',
@@ -42,7 +42,6 @@ def train_model(train_dataloader, test_dataloader, model, criterion, optimizer, 
                 'serval', 'lionMale', 'topi', 'honeyBadger', 'rodents', 'wildcat', 'civet',
                 'genet', 'caracal', 'rhinoceros', 'reptiles', 'zorilla'
     ]
-    print(f'Number of batches: {num_batches}')
     for epoch in range(num_epochs):
         print(f'Epoch {epoch+1}/{num_epochs}')
         print('-' * 10)
@@ -102,12 +101,17 @@ def main():
     # Define the loss function and optimizer
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
 
     # Train the model
-    epochs = 25
-    model = train_model( train_dataloader, test_dataloader, model, loss_fn, optimizer, scheduler, num_epochs=epochs)
-    torch.save(model, 'elephant_classifier_resnet50.pth')
+    epochs = 10
+    model = train_model(train_dataloader, test_dataloader, model, loss_fn, optimizer, scheduler, num_epochs=epochs)
+
+    output_dir = "./outputs"  # Azure ML automatically tracks this directory
+    os.makedirs(output_dir, exist_ok=True)
+    model_path = os.path.join(output_dir, "elephant_classifier_resnet50.pth")
+
+    torch.save(model.state_dict(), model_path)
 
 if __name__ == '__main__':
     main()
