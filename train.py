@@ -28,8 +28,8 @@ def get_data(input_data):
     train_data = CustomImageDataset(df=df, root_dir=input_data, transform=transform)
     train_set, test_set = random_split(train_data, [0.7, 0.3])
     # update num_workers?
-    train_dataloader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=4)
-    test_dataloader = DataLoader(test_set, batch_size=64, shuffle=True, num_workers=4)
+    train_dataloader = DataLoader(train_set, batch_size=32, shuffle=True, num_workers=4)
+    test_dataloader = DataLoader(test_set, batch_size=32, shuffle=True, num_workers=4)
 
     return train_dataloader, test_dataloader
 
@@ -56,13 +56,18 @@ def train_model(train_dataloader, test_dataloader, model, criterion, optimizer, 
                 model.train()  # Set model to training mode
             else:
                 model.eval()   # Set model to evaluate mode
-                dataloader = train_dataloader
+                dataloader = test_dataloader
 
-            running_loss = 0.0
+            running_loss = 0
+            loss_list = []
             running_corrects = 0
             i = 0
-            for inputs, labels in dataloader:
+            dataiter = iter(dataloader)
+            for loader in dataiter:
+                inputs, labels = loader
+                print(f"Batch: {i}, Labels: {labels}")
                 inputs = torch.tensor(inputs)
+                print(f"Inputs: {inputs.shape}")
                 labels = torch.tensor([classes.index(label) for label in labels])
                 # inputs, labels = inputs.to(gpu), labels.to(gpu)
 
@@ -79,9 +84,13 @@ def train_model(train_dataloader, test_dataloader, model, criterion, optimizer, 
                 
                 loss = loss.item() * inputs.size(0)
                 corrects = torch.sum(preds == labels.data)
-                if i % 100 == 0:
+                if i % 10 == 0:
+                    loss_list.append(loss)
                     print(f'Batch {i} Loss: {loss:.4f}, Correct: {corrects.item()}')
-
+                if i % 100 == 0:
+                    print('-' * 10)
+                    print(f'Batch {i} Loss List: {loss_list}')
+                    print('-' * 10)
                 i += 1
                 running_loss += loss
                 running_corrects += corrects
@@ -93,6 +102,7 @@ def train_model(train_dataloader, test_dataloader, model, criterion, optimizer, 
             epoch_acc = running_corrects.double() / len(dataloader.dataset)
 
             print(f'{phase} Loss: {epoch_loss:.4f} Accuracy: {epoch_acc:.4f}')
+            print(f'Loss list: {loss_list}')
 
     return model
 

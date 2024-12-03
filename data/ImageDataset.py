@@ -11,11 +11,6 @@ class CustomImageDataset(Dataset):
             os.path.join(root_dir, url) for url in df['URL']
         ]
         self.transform = transform
-        print(f"Number of images: {len(self.image_paths)}")
-        print(f"Sample image path: {self.image_paths[0]}")
-        image = Image.open(self.image_paths[0])
-        print(self.transform(image))
-        print(f"Image size: {image.size}")
 
     def __len__(self):
         return len(self.image_paths)
