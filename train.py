@@ -5,6 +5,7 @@ import os
 from torchvision import transforms
 from data.ImageDataset import CustomImageDataset
 from model.ResNet import ResNet
+from azure.ai.ml.entities import Datastore, Workspace
 
 def get_data():
     # read in the data
@@ -13,8 +14,18 @@ def get_data():
 
     # create a dataframe with the image urls and species label
     df = pd.merge(images, consensus_data, on='CaptureEventID')
-    df["URL"] = "https://snapshotserengeti.s3.msi.umn.edu/" + df["URL_Info"]
+    # df["URL"] = "https://snapshotserengeti.s3.msi.umn.edu/" + df["URL_Info"]
+    df["URL"] = df["URL_Info"]
     df = df[['URL', 'Species']]
+
+    # Get the datastore
+    workspace = Workspace.from_config()
+    datastore = Datastore.get(workspace, datastore_name='consensus_image_data')
+
+    # Mount the datastore (direct access)
+    mount_point = datastore.as_mount()
+    # Use this path as the data directory
+    data_dir = mount_point
 
     # define transformations
     transform = transforms.Compose([
@@ -24,7 +35,7 @@ def get_data():
     ])
 
     # create the train & test dataloaders
-    train_data = CustomImageDataset(df=df, transform=transform)
+    train_data = CustomImageDataset(df=df, data_dir=data_dir, transform=transform)
     train_set, test_set = random_split(train_data, [0.7, 0.3])
     # update num_workers?
     train_dataloader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=4)
