@@ -5,27 +5,17 @@ import os
 from torchvision import transforms
 from data.ImageDataset import CustomImageDataset
 from model.ResNet import ResNet
-from azure.ai.ml.entities import Datastore, Workspace
+import argparse
 
-def get_data():
+def get_data(input_data):
     # read in the data
     consensus_data = pd.read_csv('data/consensus_data.csv')[['CaptureEventID', 'Species']]
     images = pd.read_csv('data/all_images.csv')
 
     # create a dataframe with the image urls and species label
     df = pd.merge(images, consensus_data, on='CaptureEventID')
-    # df["URL"] = "https://snapshotserengeti.s3.msi.umn.edu/" + df["URL_Info"]
     df["URL"] = df["URL_Info"]
     df = df[['URL', 'Species']]
-
-    # Get the datastore
-    workspace = Workspace.from_config()
-    datastore = Datastore.get(workspace, datastore_name='consensus_image_data')
-
-    # Mount the datastore (direct access)
-    mount_point = datastore.as_mount()
-    # Use this path as the data directory
-    data_dir = mount_point
 
     # define transformations
     transform = transforms.Compose([
@@ -35,7 +25,7 @@ def get_data():
     ])
 
     # create the train & test dataloaders
-    train_data = CustomImageDataset(df=df, data_dir=data_dir, transform=transform)
+    train_data = CustomImageDataset(df=df, root_dir=input_data, transform=transform)
     train_set, test_set = random_split(train_data, [0.7, 0.3])
     # update num_workers?
     train_dataloader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=4)
@@ -44,6 +34,9 @@ def get_data():
     return train_dataloader, test_dataloader
 
 def train_model(train_dataloader, test_dataloader, model, criterion, optimizer, scheduler, num_epochs=5):
+    num_batches = len(train_dataloader)
+    print(f'Number of batches: {num_batches}')
+
     classes = ['human', 'gazelleGrants', 'reedbuck', 'dikDik', 'zebra', 'porcupine',
                 'gazelleThomsons', 'hyenaSpotted', 'warthog', 'impala', 'elephant', 'giraffe',
                 'mongoose', 'buffalo', 'hartebeest', 'guineaFowl', 'wildebeest', 'leopard',
@@ -58,11 +51,12 @@ def train_model(train_dataloader, test_dataloader, model, criterion, optimizer, 
         print('-' * 10)
 
         for phase in ['train', 'val']:
-            dataloader = train_dataloader if phase == 'train' else test_dataloader
-            if phase == 'train':
+            if (phase == 'train'):
+                dataloader = train_dataloader
                 model.train()  # Set model to training mode
             else:
                 model.eval()   # Set model to evaluate mode
+                dataloader = train_dataloader
 
             running_loss = 0.0
             running_corrects = 0
@@ -85,14 +79,14 @@ def train_model(train_dataloader, test_dataloader, model, criterion, optimizer, 
                 
                 loss = loss.item() * inputs.size(0)
                 corrects = torch.sum(preds == labels.data)
-                i += 1
                 if i % 100 == 0:
                     print(f'Batch {i} Loss: {loss:.4f}, Correct: {corrects.item()}')
 
+                i += 1
                 running_loss += loss
                 running_corrects += corrects
 
-            if phase == 'train':
+            if (phase == 'train'):
                 scheduler.step()
 
             epoch_loss = running_loss / len(dataloader.dataset)
@@ -102,12 +96,13 @@ def train_model(train_dataloader, test_dataloader, model, criterion, optimizer, 
 
     return model
 
-def main():
+def main(input_data):
+    input_data_path = input_data
+    print(f"Input data path: {input_data_path}")
     # get the dataloaders
-    train_dataloader, test_dataloader = get_data()
+    train_dataloader, test_dataloader = get_data(input_data_path)
     # load the model
     model = ResNet(num_classes=48)
-    # model to gpu
 
     # Define the loss function and optimizer
     loss_fn = torch.nn.CrossEntropyLoss()
@@ -125,4 +120,8 @@ def main():
     torch.save(model.state_dict(), model_path)
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input_data", type=str, help="Path to the input data")
+    args = parser.parse_args()
+
+    main(args.input_data)
