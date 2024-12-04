@@ -16,8 +16,13 @@ class CustomImageDataset(Dataset):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        img_path = self.image_paths[idx]
-        image = Image.open(img_path)
+        try:
+            img_path = self.image_paths[idx]
+            image = Image.open(img_path)
+        except Exception as e:
+            print(f'Error loading image: {img_path}')
+            print(e)
+            return None
         
         if self.transform:
             image = self.transform(image)

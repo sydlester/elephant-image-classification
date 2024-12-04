@@ -56,7 +56,7 @@ def train_model(train_dataloader, test_dataloader, model, criterion, optimizer, 
                 model.train()  # Set model to training mode
             else:
                 model.eval()   # Set model to evaluate mode
-                dataloader = test_dataloader
+                dataloader = test_dataloader 
 
             running_loss = 0
             loss_list = []
@@ -116,11 +116,11 @@ def main(input_data):
 
     # Define the loss function and optimizer
     loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.00001, momentum=0.9)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
     # Train the model
-    epochs = 10
+    epochs = 5
     model = train_model(train_dataloader, test_dataloader, model, loss_fn, optimizer, scheduler, num_epochs=epochs)
 
     output_dir = "./outputs"  # Azure ML automatically tracks this directory
